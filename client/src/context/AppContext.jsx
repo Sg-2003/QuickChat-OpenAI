@@ -23,11 +23,11 @@ export const AppContextProvider = ({ children }) => {
     const [chatOffset, setChatOffset] = useState(0);
     const [hasMoreChats, setHasMoreChats] = useState(false);
 
-    const fetchUser = async () => {
+    const fetchUser = async (authToken = token) => {
         try {
             const { data } = await axios.get('/api/user/data', {
                 headers: {
-                    Authorization: `Bearer ${token}`
+                    Authorization: `Bearer ${authToken}`
                 }
             });
             if (data.success) {
@@ -61,7 +61,7 @@ export const AppContextProvider = ({ children }) => {
         localStorage.setItem('token', token);
         setToken(token);
         toast.success('User login successful');
-        fetchUser();
+        fetchUser(token);
     }
 
     const logout = () => {
@@ -161,7 +161,7 @@ export const AppContextProvider = ({ children }) => {
 
     useEffect(() => {
         if (token) {
-            fetchUser()
+            fetchUser(token)
         } else {
             setUser(null)
             setLoadingUser(false)
