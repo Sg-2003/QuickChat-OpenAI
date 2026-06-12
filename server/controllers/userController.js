@@ -18,14 +18,14 @@ export const registerUser = async (req, res) => {
         const userExists = await User.findOne({ email: email.toLowerCase().trim() });
 
         if (userExists) {
-            return res.json({ sucess: false, message: "User already exists" })
+            return res.json({ success: false, message: "User already exists" })
         }
         const user = await User.create({ name, email: email.toLowerCase().trim(), password });
 
         const token = generateToken(user._id);
-        res.json({ sucess: true, user, token });
+        res.json({ success: true, user, token });
     } catch (error) {
-        return res.json({ sucess: false, message: error.message });
+        return res.json({ success: false, message: error.message });
     }
 }
 //API to login user
@@ -40,21 +40,21 @@ export const loginUser = async (req, res) => {
 
             if (isMatch) {
                 const token = generateToken(user._id);
-                return res.json({ sucess: true, token });
+                return res.json({ success: true, token });
             }
         }
-        return res.json({ sucess: false, message: "Invalid email or password" });
+        return res.json({ success: false, message: "Invalid email or password" });
     } catch (error) {
-        return res.json({ sucess: false, message: error.message });
+        return res.json({ success: false, message: error.message });
     }
 }
-//API to get user data 
+//API to get user data
 export const getUser = async (req, res) => {
     try {
         const user = req.user;
-        return res.json({ sucess: true, user });
+        return res.json({ success: true, user });
     } catch (error) {
-        return res.json({ sucess: false, message: error.message });
+        return res.json({ success: false, message: error.message });
     }
 }
 
@@ -62,7 +62,7 @@ export const getUser = async (req, res) => {
 export const getPublishedImages = async (req, res) => {
     try {
         const publishedImageMessages = await Chat.aggregate([
-            {$unwind: "$messages"},
+            { $unwind: "$messages" },
             {
                 $match: {
                     "messages.isPublished": true,
@@ -70,18 +70,17 @@ export const getPublishedImages = async (req, res) => {
                 }
             },
             {
-                $project:{
+                $project: {
                     _id: 0,
                     imageUrl: "$messages.content",
                     userName: "$userName"
                 }
             }
         ]);
-        res.json({ success: true, images: publishedImageMessages.reverse()});
+        res.json({ success: true, images: publishedImageMessages.reverse() });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
 }
 
 
-       

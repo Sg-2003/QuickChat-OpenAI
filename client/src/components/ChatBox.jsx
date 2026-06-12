@@ -7,7 +7,7 @@ const ChatBox = () => {
 
   const containerRef = useRef(null);
 
-  const { selectedChat, theme } = useAppContext();
+  const { selectedChat, theme, setSelectedChat, setChats, axios } = useAppContext();
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -32,16 +32,11 @@ const ChatBox = () => {
     const body = { chatId: selectedChat._id, prompt, ...(mode === 'image' && { isPublished }) };
 
     try {
-      const response = await fetch(`http://localhost:3000${endpoint}`, {
-        method: 'POST',
+      const { data } = await axios.post(endpoint, body, {
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
+          Authorization: `Bearer ${token}`
+        }
       });
-
-      const data = await response.json();
       if (data.success) {
         const userMessage = {
           role: 'user',
@@ -66,7 +61,7 @@ const ChatBox = () => {
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message');
+      alert(error.response?.data?.message || 'Failed to send message');
     } finally {
       setLoading(false);
     }

@@ -2,10 +2,11 @@ import React, { useState } from 'react'
 import { useAppContext } from '../context/AppContext';
 import { assets } from '../assets/assets';
 import moment from 'moment';
+import toast from 'react-hot-toast';
 
 const Sidebar = ({ isMenuOpen, setIsMenuOpen }) => {
 
-  const { chats, setSelectedChat, user, theme, setTheme, navigate } = useAppContext();
+  const { chats, setSelectedChat, user, theme, setTheme, navigate, createNewChat, fetchUsersChats, logout, deleteChat, hasMoreChats } = useAppContext();
   const [search, setSearch] = useState('');
 
   return (
@@ -14,7 +15,7 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen }) => {
       <img src={theme === 'dark' ? assets.logo_full : assets.logo_full_dark} className='w-full max-w-48' />
 
       {/*New Chat Button*/}
-      <button className='flex justify-center items-center w-full py-2 mt-10 text-white bg-gradient-to-r from-[#a456f7] to-[#3d81f6] text-sm rounded-md cursor-pointer'>
+      <button onClick={createNewChat} className='flex justify-center items-center w-full py-2 mt-10 text-white bg-gradient-to-r from-[#a456f7] to-[#3d81f6] text-sm rounded-md cursor-pointer'>
         <span className='mr-2 text-xl'>+</span> New Chat
       </button>
 
@@ -31,26 +32,33 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen }) => {
       <div className="flex-1 overflow-y-scroll mt-3 text-sm space-y-3">
         {
           chats.filter((chat) => chat.messages[0] ? chat.messages[0]?.content?.toLowerCase().includes(search.toLowerCase()) : chat.name?.toLowerCase().includes(search.toLowerCase())).map((chat) => (
-            <div onClick={()=>{navigate('/'); setSelectedChat(chat); setIsMenuOpen(false)}} key={chat._id} className="p-2 px-4 dark:bg-[#57317C]/10 border border-gray-300 dark:border-[#80609f]/15 rounded-md cursor-pointer flex justify-between group">
+            <div onClick={() => { navigate('/'); setSelectedChat(chat); setIsMenuOpen(false); toast.success('Back to previous chat'); }} key={chat._id} className="p-2 px-4 dark:bg-[#57317C]/10 border border-gray-300 dark:border-[#80609f]/15 rounded-md cursor-pointer flex justify-between group">
               <div className="">
                 <p className='truncate w-full'>{chat.messages.length > 0 ? chat.messages[0].content.slice(0, 32) : chat.name}</p>
                 <p className='text-xs text-gray-500 dark:text-[#b1a6c0]'>{moment(chat.updatedAt).fromNow()}</p>
               </div>
-              <img src={assets.bin_icon} className="hidden group-hover:block w-4 cursor-pointer not-dark:invert" />
+              <button onClick={(e) => { e.stopPropagation(); console.log('Bin icon clicked for chat', chat._id); if (window.confirm('Are you sure you want to delete this chat?')) { deleteChat(chat._id); } }} className="bg-transparent border-none p-0 cursor-pointer">
+                <img src={assets.bin_icon} className="w-4 not-dark:invert" />
+              </button>
             </div>
           ))
         }
+        {hasMoreChats && (
+          <button onClick={() => fetchUsersChats(true)} className='w-full py-2 mt-2 text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 text-sm rounded-md cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors'>
+            View All
+          </button>
+        )}
       </div>
 
       {/*Community Images*/}
-      <div onClick={() => { navigate('/community'); setIsMenuOpen(false) }} className="flex items-center gap-2 p-3 mt-4 border border-gray-300 dark:border-white/15 rounded-md cursor-pointer hover:scale-103 transition-all">
+      <div onClick={() => { navigate('/community'); setIsMenuOpen(false); toast.success('Welcome to Community Images'); }} className="flex items-center gap-2 p-3 mt-4 border border-gray-300 dark:border-white/15 rounded-md cursor-pointer hover:scale-103 transition-all">
         <img src={assets.gallery_icon} className="w-4.5 not-dark:invert" />
         <div className="flex flex-col text-sm">
           <p>Community Images</p>
         </div>
       </div>
       {/*Credits Purchase Option*/}
-      <div onClick={() => { navigate('/credits'); setIsMenuOpen(false) }} className="flex items-center gap-2 p-3 mt-4 border border-gray-300 dark:border-white/15 rounded-md cursor-pointer hover:scale-103 transition-all">
+      <div onClick={() => { navigate('/credits'); setIsMenuOpen(false); toast.success('Welcome to QuickGPT Credits'); }} className="flex items-center gap-2 p-3 mt-4 border border-gray-300 dark:border-white/15 rounded-md cursor-pointer hover:scale-103 transition-all">
         <img src={assets.diamond_icon} className="w-4.5 dark:invert" />
         <div className="flex flex-col text-sm">
           <p>Credits : {user?.credits}</p>
@@ -73,7 +81,7 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen }) => {
       <div className="flex items-center gap-3 p-3 mt-4 border border-gray-300 dark:border-white/15 rounded-md cursor-pointer group">
         <img src={assets.user_icon} className="w-7 rounded-full" />
         <p className='flex-1 text-sm dark:text-primary truncate'>{user ? user.name : "Login your Account"}</p>
-        {user && <img src={assets.logout_icon} className="h-5 cursor-pointer hidden not-dark:invert group-hover:block" />}
+        {user && <img onClick={logout} src={assets.logout_icon} className="h-5 cursor-pointer hidden not-dark:invert group-hover:block" />}
       </div>
       <img onClick={() => setIsMenuOpen(false)} src={assets.close_icon} className="absolute top-3 right-3 w-5 h-5 cursor-pointer md:hidden not-dark:invert" />
     </div>

@@ -2,7 +2,8 @@ import axios from "axios";
 import Chat from "../models/Chat.js";
 import User from "../models/User.js";
 import imagekit from "../configs/imageKit.js";
-import openai, { openaiImages } from "../configs/openai.js";
+import openai from "../configs/openai.js";
+import genAI from "../configs/gemini.js";
 
 
 // Text-based AI Chat Message Controller
@@ -18,23 +19,47 @@ export const textMessageController = async (req, res) => {
         const { chatId, prompt } = req.body;
 
         const chat = await Chat.findOne({ userId, _id: chatId });
+        if (!chat) {
+            return res.json({ success: false, message: "Chat not found" });
+        }
+        if (!process.env.OPENAI_API_KEY && !process.env.GEMINI_API_KEY) {
+            return res.json({ success: false, message: "AI service not configured" });
+        }
         chat.messages.push({
             role: 'user',
             content: prompt,
             timestamp: Date.now(),
             isImage: false,
         })
-        const { choices } = await openai.chat.completions.create({
-            model: "gemini-2.5-flash",
-            messages: [
-                {
-                    role: "user",
-                    content: prompt,
-                },
-            ],
-        });
+        const messages = chat.messages.slice(0, -1).map(msg => ({
+            role: msg.role,
+            content: msg.content,
+        }));
+        messages.push({ role: 'user', content: prompt });
 
-        const reply = { ...choices[0].message, timestamp: Date.now(), isImage: false }
+        let text;
+        try {
+            const completion = await openai.chat.completions.create({
+                model: "gpt-3.5-turbo",
+                messages: messages,
+            });
+            text = completion.choices[0].message.content;
+        } catch (openaiError) {
+            console.log("OpenAI text chat failed, falling back to Gemini:", openaiError.message);
+            const geminiHistory = chat.messages.slice(0, -1).map(msg => ({
+                role: msg.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: msg.content }]
+            })).filter(h => h.role === 'user' || h.role === 'model');
+
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            const chatSession = model.startChat({
+                history: geminiHistory,
+            });
+            const result = await chatSession.sendMessage(prompt);
+            text = result.response.text();
+        }
+
+        const reply = { role: 'assistant', content: text, timestamp: Date.now(), isImage: false }
         res.json({ success: true, reply })
         chat.messages.push(reply);
         await chat.save();
@@ -56,6 +81,9 @@ export const imageMessageController = async (req, res) => {
         const { chatId, prompt, isPublished } = req.body;
         //Find chat
         const chat = await Chat.findOne({ userId, _id: chatId });
+        if (!chat) {
+            return res.json({ success: false, message: "Chat not found" });
+        }
 
         // Push user messages
         chat.messages.push({
@@ -65,33 +93,48 @@ export const imageMessageController = async (req, res) => {
             isImage: false
         })
 
-        // Check if image generation is supported
-        if (!openaiImages) {
-            throw new Error("Image generation is not supported with the current API configuration. Only Gemini API is used for text chat.");
+        let uploadResponse;
+        try {
+            // Generate image using OpenAI DALL-E
+            const aiImageResponse = await openai.images.generate({
+                model: "dall-e-2",
+                prompt: prompt,
+                n: 1,
+                size: "512x512",
+            });
+
+            const imageUrl = aiImageResponse.data[0].url;
+
+            // Fetch the image from OpenAI URL
+            const imageBufferResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+
+            // Convert to Base64
+            const base64Image = `data:image/jpeg;base64,${Buffer.from(imageBufferResponse.data, 'binary').toString('base64')}`;
+
+            // Upload to ImageKit Media Library
+            uploadResponse = await imagekit.upload({
+                file: base64Image,
+                fileName: `${Date.now()}.jpg`,
+                folder: 'quickgpt',
+            });
+        } catch (openaiError) {
+            console.log("OpenAI Image generation failed, falling back to LoremFlickr:", openaiError.message);
+            // Fallback to LoremFlickr matching search term
+            const fallbackUrl = `https://loremflickr.com/512/512/${encodeURIComponent(prompt.trim())}`;
+            
+            // Fetch image from LoremFlickr URL
+            const imageBufferResponse = await axios.get(fallbackUrl, { responseType: 'arraybuffer' });
+            
+            // Convert to Base64
+            const base64Image = `data:image/jpeg;base64,${Buffer.from(imageBufferResponse.data, 'binary').toString('base64')}`;
+            
+            // Upload to ImageKit Media Library
+            uploadResponse = await imagekit.upload({
+                file: base64Image,
+                fileName: `${Date.now()}.jpg`,
+                folder: 'quickgpt',
+            });
         }
-
-        // Generate image using OpenAI DALL-E
-        const imageResponse = await openaiImages.images.generate({
-            model: "dall-e-3",
-            prompt: prompt,
-            n: 1,
-            size: "1024x1024"
-        });
-
-        const imageUrl = imageResponse.data[0].url;
-
-        // Fetch the image from OpenAI URL
-        const aiImageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-
-        // Convert to Base64
-        const base64Image = `data:image/png;base64,${Buffer.from(aiImageResponse.data, 'binary').toString('base64')}`;
-
-        // Upload to ImageKit Media Library
-        const uploadResponse = await imagekit.upload({
-            file: base64Image,
-            fileName: `${Date.now()}.png`,
-            folder: 'quickgpt',
-        });
 
         const reply = {
             role: 'assistant',

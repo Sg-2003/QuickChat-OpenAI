@@ -1,26 +1,27 @@
-# TODO: Fix Image Generation Issue
+# TODO: Make Credit Purchase Functional
 
-## Completed Tasks
+- [x] Edit client/src/pages/Credits.jsx: Add onClick handler to "Buy Now" button to call handlePurchase(plan._id)
+- [x] Edit server/routes/creditRoutes.js: Change route from '/plan' to '/plans' to match client request
+- [x] Edit server/controllers/webhooks.js: Change webhook event from 'payment_intent.succeeded' to 'checkout.session.completed' and simplify handling
+- [ ] Test the purchase flow: Click buy, redirect to Stripe, complete payment, verify credits updated
 
-- [x] Identified that the `onSubmit` function in `ChatBox.jsx` was empty, preventing any requests to the server.
-- [x] Implemented the `onSubmit` function to handle both text and image message submissions.
-- [x] Added logic to send POST requests to `/api/message/text` or `/api/message/image` based on mode.
-- [x] Updated client-side state to reflect new messages after successful submission.
-- [x] Modified `fetchUsersChats` in `AppContext.jsx` to fetch real chat data from the server instead of using dummy data.
-- [x] Added `createNewChat` function to create a new chat if none exist.
+# TODO: Fix Login Page Authorization Header
 
-## Pending Tasks
+- [x] Fix inconsistent Authorization header in AppContext.jsx fetchUser function to include "Bearer " prefix
+- [x] Start client and server to test login functionality
 
-- [x] Test the image generation functionality by running the app and submitting an image prompt.
-  - Server is running successfully on localhost:3000.
-  - Client development server started.
-  - Basic server endpoint responds correctly.
-- [x] Remove OPENAI_API_KEY and use only GEMINI_API_KEY for text chat.
-- [x] Disable image generation since Gemini API doesn't support it.
-- [ ] Verify that credits are deducted correctly for image generations (2 credits).
-- [ ] Check error handling for cases like insufficient credits or API failures.
+# TODO: Fix Chat Container AI Response Issue
 
-## Notes
-
-- The server-side image generation logic appears correct, using OpenAI DALL-E and ImageKit for upload.
-- Client now properly sends requests to the server, which should resolve the "not working" issue.
+- [x] Add checks for chat existence and API key in messageController.js
+- [x] Change Gemini model from "gemini-1.5-flash" to "gemini-1.5-pro" to fix 404 error
+- [x] Switch back to direct GoogleGenerativeAI API instead of OpenAI-compatible API to resolve 404 issues
+- [x] Change model to "gpt-3.5-turbo" to use OpenAI API instead of Gemini, as the OpenAI-compatible API was causing 404 errors
+- [x] Update openai.js to use OPENAI_API_KEY for text chat and update API key check in messageController.js
+- [x] Update API key check in messageController.js to check for OPENAI_API_KEY instead of GEMINI_API_KEY
+- [x] Update API key check in messageController.js to check for OPENAI_API_KEY instead of GEMINI_API_KEY
+- [x] Update API key check in messageController.js to check for OPENAI_API_KEY instead of GEMINI_API_KEY
+- [x] Update API key check in messageController.js to check for OPENAI_API_KEY instead of GEMINI_API_KEY
+- [x] Switched text chat from Gemini to OpenAI API in messageController.js
+- [x] Created server/configs/openai.js with OpenAI initialization
+- [x] Updated API key check to OPENAI_API_KEY in messageController.js
+- [ ] Test the chat functionality to ensure AI responses work correctly (code changes implemented, testing requires valid OPENAI_API_KEY)

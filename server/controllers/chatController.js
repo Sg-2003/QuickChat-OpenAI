@@ -12,9 +12,9 @@ export const createChat = async (req, res) => {
             userName: req.user.name,
         }
         await Chat.create(chatData);
-        res.json({sucess: true, message: "Chat created"});
+        res.json({ success: true, message: "Chat created" });
     } catch (error) {
-        res.json({ sucess: false, message: error.message });
+        res.json({ success: false, message: error.message });
     }
 };
 
@@ -22,9 +22,11 @@ export const createChat = async (req, res) => {
 export const getChat = async (req, res) => {
     try {
         const userId = req.user._id;
-        const chats = await Chat.find({ userId }).sort({updatedAt: -1});
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = parseInt(req.query.offset) || 0;
+        const chats = await Chat.find({ userId }).sort({ updatedAt: -1 }).skip(offset).limit(limit);
 
-        res.json({sucess: true, chats});
+        res.json({ success: true, chats });
     } catch (error) {
         res.json({ sucess: false, message: error.message });
     }
@@ -33,12 +35,12 @@ export const getChat = async (req, res) => {
 export const deleteChat = async (req, res) => {
     try {
         const userId = req.user._id;
-        const {chatId} = req.body;
+        const { chatId } = req.body;
 
-        await Chat.deleteOne({_id: chatId, userId});
+        await Chat.deleteOne({ _id: chatId, userId });
 
-        res.json({sucess: true, message: 'Chat Deleted'});
+        res.json({ success: true, message: 'Chat Deleted' });
     } catch (error) {
-        res.json({ sucess: false, message: error.message });
+        res.json({ success: false, message: error.message });
     }
 };

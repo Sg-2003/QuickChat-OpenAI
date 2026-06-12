@@ -1,43 +1,33 @@
 import React, { useState } from 'react'
 import { useAppContext } from '../context/AppContext'
+import toast from 'react-hot-toast';
 
 const Login = () => {
     const [state, setState] = useState("login");
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
-    const { navigate } = useAppContext();
+    const { axios, login } = useAppContext();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError("");
         setLoading(true);
 
-        const endpoint = state === "login" ? "/api/user/login" : "/api/user/register";
+        const url = state === "login" ? "/api/user/login" : "/api/user/register";
         const payload = state === "login" ? { email, password } : { name, email, password };
 
         try {
-            const response = await fetch(`http://localhost:3000${endpoint}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            });
-
-            const data = await response.json();
-
-            if (data.sucess) {
-                localStorage.setItem('token', data.token);
-                navigate('/');
+            const { data } = await axios.post(url, payload);
+            if (data.success) {
+                login(data.token);
             } else {
-                setError(data.message);
+                toast.error(data.message);
             }
-        } catch {
-            setError("An error occurred. Please try again.");
+        } catch (error) {
+            toast.error(error.response?.data?.message || "An error occurred");
         } finally {
             setLoading(false);
         }
@@ -71,7 +61,6 @@ const Login = () => {
                     Create an account? <span onClick={() => setState("register")} className="text-purple-700 cursor-pointer">click here</span>
                 </p>
             )}
-            {error && <p className="text-red-500 text-sm">{error}</p>}
             <button type='submit' disabled={loading} className="bg-purple-700 hover:bg-purple-800 transition-all text-white w-full py-2 rounded-md cursor-pointer disabled:opacity-50">
                 {loading ? "Loading..." : (state === "register" ? "Create Account" : "Login")}
             </button>

@@ -1,6 +1,12 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { dummyChats } from "../assets/assets";
+import { dummyChats, dummyUserData } from "../assets/assets";
+import axios from "axios";
+import toast from "react-hot-toast";
+
+
+axios.defaults.baseURL = import.meta.env.VITE_SERVER_URL;
+
 
 const AppContext = createContext()
 
@@ -11,33 +17,50 @@ export const AppContextProvider = ({ children }) => {
     const [chats, setChats] = useState([]);
     const [selectedChat, setSelectedChat] = useState(null);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+    const [token, setToken] = useState(localStorage.getItem('token') || null);
+    const [loadingUser, setLoadingUser] = useState(true);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+    const [chatOffset, setChatOffset] = useState(0);
+    const [hasMoreChats, setHasMoreChats] = useState(false);
 
     const fetchUser = async () => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            try {
-                const response = await fetch('http://localhost:3000/api/user/data', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
-                const data = await response.json();
-                if (data.sucess) {
-                    setUser(data.user);
-                } else {
-                    localStorage.removeItem('token');
-                    setUser(null);
+        try {
+            const { data } = await axios.get('/api/user/data', {
+                headers: {
+                    Authorization: `Bearer ${token}`
                 }
-            } catch (error) {
-                console.error('Error fetching user:', error);
+            });
+            if (data.success) {
+                setUser(data.user);
+                if (isInitialLoad) {
+                    setTimeout(() => {
+                        toast.success("Welcome to QuickGPT");
+                        setLoadingUser(false);
+                    }, 2000); // 2 second delay
+                    setIsInitialLoad(false);
+                } else {
+                    setLoadingUser(false);
+                }
+            } else {
+                toast.error(data.message);
+                setLoadingUser(false);
+                // Clear invalid token
                 localStorage.removeItem('token');
-                setUser(null);
+                setToken(null);
             }
+        } catch (error) {
+            toast.error(error.message);
+            setLoadingUser(false);
+            // Clear invalid token on auth error
+            localStorage.removeItem('token');
+            setToken(null);
         }
     }
 
     const login = (token) => {
         localStorage.setItem('token', token);
+        setToken(token);
+        toast.success('User login successful');
         fetchUser();
     }
 
@@ -46,54 +69,75 @@ export const AppContextProvider = ({ children }) => {
         setUser(null);
         setChats([]);
         setSelectedChat(null);
+        toast.success('User logout successful');
         navigate('/login');
     }
 
-    const fetchUsersChats = async () => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            try {
-                const response = await fetch('http://localhost:3000/api/chat/get', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
-                const data = await response.json();
-                if (data.sucess) {
-                    setChats(data.chats);
-                    if (data.chats.length > 0) {
-                        setSelectedChat(data.chats[0]);
-                    } else {
-                        // Create a new chat if none exist
-                        await createNewChat();
-                    }
+    const fetchUsersChats = async (loadMore = false) => {
+        try {
+            const limit = 10;
+            const offset = loadMore ? chatOffset : 0;
+            const { data } = await axios.get(`/api/chat/get?limit=${limit}&offset=${offset}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+            });
+            if (data.success) {
+                if (loadMore) {
+                    setChats(prevChats => [...prevChats, ...data.chats]);
+                    setChatOffset(prevOffset => prevOffset + data.chats.length);
+                    setHasMoreChats(data.chats.length === limit);
                 } else {
-                    console.error('Failed to fetch chats:', data.message);
+                    setChats(data.chats);
+                    setChatOffset(data.chats.length);
+                    setHasMoreChats(data.chats.length === limit);
+                    // If the user has no chats, create One
+                    if (data.chats.length === 0) {
+                        await createNewChat();
+                        return fetchUsersChats();
+                    } else {
+                        // for existing chat
+                        setSelectedChat(data.chats[0]);
+                    }
                 }
-            } catch (error) {
-                console.error('Error fetching chats:', error);
+            } else {
+                toast.error(data.message);
             }
+        } catch (error) {
+            toast.error(error.message);
         }
     }
 
     const createNewChat = async () => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            try {
-                const response = await fetch('http://localhost:3000/api/chat/create', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
-                const data = await response.json();
-                if (data.sucess) {
-                    await fetchUsersChats(); // Refetch chats after creating new one
-                } else {
-                    console.error('Failed to create chat:', data.message);
+        try {
+            if (!user) return toast.error('Login to create a new chat')
+            navigate('/')
+            await axios.get('/api/chat/create', { headers: { Authorization: `Bearer ${token}` } })
+            toast.success('New chat created');
+            await fetchUsersChats()
+        } catch (error) {
+            toast.error(error.message);
+        }
+    }
+
+    const deleteChat = async (chatId) => {
+        try {
+            const { data } = await axios.post('/api/chat/delete', { chatId }, {
+                headers: {
+                    Authorization: `Bearer ${token}`
                 }
-            } catch (error) {
-                console.error('Error creating chat:', error);
+            });
+            if (data.success) {
+                toast.success(data.message);
+                await fetchUsersChats();
+                if (selectedChat && selectedChat._id === chatId) {
+                    setSelectedChat(null);
+                }
+            } else {
+                toast.error(data.message);
             }
+        } catch (error) {
+            toast.error(error.message);
         }
     }
 
@@ -116,8 +160,13 @@ export const AppContextProvider = ({ children }) => {
     }, [user])
 
     useEffect(() => {
-        fetchUser()
-    }, [])
+        if (token) {
+            fetchUser()
+        } else {
+            setUser(null)
+            setLoadingUser(false)
+        }
+    }, [token])
 
 
     const value = {
@@ -132,8 +181,18 @@ export const AppContextProvider = ({ children }) => {
         setTheme,
         fetchUser,
         login,
-        logout
+        logout,
+        createNewChat,
+        loadingUser,
+        setLoadingUser,
+        fetchUsersChats,
+        token,
+        setToken,
+        axios,
+        deleteChat,
+        hasMoreChats
     }
+
     return (
         <AppContext.Provider value={value}>
             {children}
