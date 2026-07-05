@@ -41,7 +41,7 @@ QuickChat AI is a premium, full-stack MERN (MongoDB, Express, React, Node.js) we
 ## 📁 Project Structure
 
 ```text
-QuickChat/
+QuickChat-OpenAI/
 ├── client/                     # React Frontend Application
 │   ├── src/
 │   │   ├── assets/             # Icons, CSS styles (including Prism themes)
